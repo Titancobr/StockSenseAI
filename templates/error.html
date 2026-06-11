@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Something Went Wrong | StockSense AI{% endblock %}
+{% block content %}
+<section class="page-hero section error-page">
+  <div class="eyebrow"><span></span> Unable to continue</div>
+  <h1>Something went <em>wrong.</em></h1>
+  <p>{{ message }}</p>
+  <a class="button button-primary" href="{{ url_for('home') }}">Return Home <span>→</span></a>
+</section>
+{% endblock %}

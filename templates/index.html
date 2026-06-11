@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero section">
+  <div class="hero-copy reveal">
+    <div class="eyebrow"><span></span> AI Powered Fundamental Analysis for Indian Stocks</div>
+    <h1>Want to invest in a stock for the <em>long term?</em></h1>
+    <p class="hero-text">Check how fundamentally strong a company is before investing and holding for years using AI-powered analysis.</p>
+    <div class="hero-actions">
+      <a class="button button-primary" href="{{ url_for('guide') }}">Start Analysis <span>→</span></a>
+      <div class="trust"><strong>15</strong><span>fundamental signals<br>analyzed by AI</span></div>
+    </div>
+  </div>
+  <div class="hero-visual reveal delay-one" aria-hidden="true">
+    <div class="dashboard-card glass">
+      <div class="dash-top"><span>Fundamental strength</span><span class="live-dot">AI model</span></div>
+      <div class="mini-gauge"><div><strong>87</strong><small>/100</small></div></div>
+      <div class="dash-result"><span>Long-term outlook</span><strong>Strong</strong></div>
+      <div class="signal-bars">
+        <span style="--bar: 82%"></span><span style="--bar: 65%"></span><span style="--bar: 91%"></span><span style="--bar: 74%"></span><span style="--bar: 88%"></span>
+      </div>
+    </div>
+    <div class="float-card glass float-one"><span>↗</span><div><small>ROCE</small><strong>Healthy</strong></div></div>
+    <div class="float-card glass float-two"><span>✓</span><div><small>Model</small><strong>Ready</strong></div></div>
+  </div>
+</section>
+
+<section class="section guidelines">
+  <div class="section-heading reveal">
+    <div class="eyebrow"><span></span> Invest with perspective</div>
+    <h2>Good investing is a <em>continuing process.</em></h2>
+    <p>Use the score as one signal in a thoughtful, long-term research process.</p>
+  </div>
+  <div class="guideline-grid">
+    <article class="info-card glass reveal"><span class="card-number">01</span><div class="icon-box">⌁</div><h3>Long-Term Investing</h3><p>This tool is designed for investors who want to hold fundamentally strong companies for the long term.</p></article>
+    <article class="info-card glass reveal delay-one"><span class="card-number">02</span><div class="icon-box">↻</div><h3>Regular Analysis</h3><p>Perform a fresh analysis every 3 months because company fundamentals can change over time.</p></article>
+    <article class="info-card glass reveal delay-two"><span class="card-number">03</span><div class="icon-box">◫</div><h3>Keep Track of News</h3><p>Monitor important financial news from reliable business news platforms such as Moneycontrol.</p></article>
+    <article class="info-card glass reveal"><span class="card-number">04</span><div class="icon-box">◎</div><h3>Major Global Events</h3><p>Re-evaluate after wars, tariffs, major government policy changes, economic crises, or global recessions.</p></article>
+    <article class="info-card glass reveal delay-one"><span class="card-number">05</span><div class="icon-box">✦</div><h3>AI Decision Support</h3><p>This website provides an AI-based fundamental strength score to help evaluate stocks.</p></article>
+  </div>
+</section>
+{% endblock %}

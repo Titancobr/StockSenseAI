@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Analyze Stock | StockSense AI{% endblock %}
+{% block content %}
+<section class="page-hero section compact">
+  <div class="eyebrow reveal"><span></span> Fundamental analysis</div>
+  <h1 class="reveal">Enter the values exactly as <em>shown in the video.</em></h1>
+  <p class="reveal">Every field is required. Use the latest available figures for the company.</p>
+</section>
+<section class="section form-section">
+  <aside class="data-guidance glass reveal" aria-labelledby="missing-values-title">
+    <div class="guidance-icon">!</div>
+    <div>
+      <div class="eyebrow"><span></span> Missing values guide</div>
+      <h2 id="missing-values-title">Do not leave any field empty.</h2>
+      <p>If <strong>Int Coverage</strong> is missing in Screener and <strong>Debt to equity is 0</strong>, enter <strong>100</strong> for Int Coverage.</p>
+      <p>If any other value is missing in Screener, search Google using:</p>
+      <div class="search-format">Company name, missing parameter name, current month and current year</div>
+      <p class="search-example">Example: <strong>Infosys ROE June 2026</strong></p>
+    </div>
+  </aside>
+  <form class="analysis-form glass reveal" method="post" action="{{ url_for('analysis') }}">
+    <div class="form-progress"><span><b data-completed-fields>0</b>/15 values completed</span><span data-model-status>Complete every field <i></i></span></div>
+    {% if errors %}<div class="form-alert">Please correct the highlighted fields and try again.</div>{% endif %}
+    <div class="input-grid">
+      {% for label, feature, placeholder in fields %}
+      <label class="input-card {% if errors and feature in errors %}has-error{% endif %}">
+        <span>{{ "%02d"|format(loop.index) }}</span>
+        <strong>{{ label }}</strong>
+        <input type="number" step="any" name="{{ feature }}" placeholder="{{ placeholder }}" value="{{ values.get(feature, '') }}" required inputmode="decimal">
+        {% if errors and feature in errors %}<small>{{ errors[feature] }}</small>{% endif %}
+      </label>
+      {% endfor %}
+    </div>
+    <button class="button button-primary button-large submit-button" type="submit" disabled>Complete All Fields <span>→</span></button>
+    <p class="submit-help">Analysis unlocks only after all 15 numeric values are entered.</p>
+  </form>
+</section>
+{% endblock %}

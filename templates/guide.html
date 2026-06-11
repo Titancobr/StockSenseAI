@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Guide | StockSense AI{% endblock %}
+{% block content %}
+<section class="page-hero section compact">
+  <div class="eyebrow reveal"><span></span> Two steps before analysis</div>
+  <h1 class="reveal">Before using this tool, please <em>watch the videos carefully.</em></h1>
+  <p class="reveal">Please watch both videos completely and then enter the values exactly as shown.</p>
+</section>
+<section class="section video-section">
+  <article class="video-card glass reveal">
+    <div class="step-label">Step 1</div>
+    <div class="video-wrap"><video controls preload="metadata" playsinline><source src="{{ url_for('media', filename='install_screener.mp4') }}" type="video/mp4">Your browser does not support embedded video.</video></div>
+    <div class="video-copy"><span class="icon-box">↓</span><div><h2>Install Screener App</h2><p>Set up the source used to collect the required company fundamentals.</p></div></div>
+  </article>
+  <article class="video-card glass reveal delay-one">
+    <div class="step-label">Step 2</div>
+    <div class="video-wrap"><video controls preload="metadata" playsinline><source src="{{ url_for('media', filename='how_to_use.mp4') }}" type="video/mp4">Your browser does not support embedded video.</video></div>
+    <div class="video-copy"><span class="icon-box">⌕</span><div><h2>How to Find the Required Values</h2><p>Follow the walkthrough carefully and enter every value exactly as demonstrated.</p></div></div>
+  </article>
+  <div class="center-action reveal"><a class="button button-primary button-large" href="{{ url_for('analysis') }}">Proceed to Analysis <span>→</span></a></div>
+</section>
+{% endblock %}

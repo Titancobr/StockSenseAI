@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Your Stock Strength Score | StockSense AI{% endblock %}
+{% block content %}
+<section class="result-hero section" data-score="{{ score }}">
+  <div class="result-copy reveal">
+    <div class="eyebrow"><span></span> Analysis complete</div>
+    <h1>Stock Strength <em>Score</em></h1>
+    <p>Your result is generated directly by the uploaded StockSense machine learning model.</p>
+    <div class="recommendation-pill {{ tone }}"><i></i>{{ recommendation }}</div>
+    <p class="result-explanation">{{ explanation }}</p>
+    <a class="button button-secondary" href="{{ url_for('analysis') }}">Analyze Another Stock <span>↻</span></a>
+  </div>
+  <div class="score-panel glass reveal delay-one">
+    <div class="gauge" style="--score: {{ score }}; --circumference: 565.49">
+      <svg viewBox="0 0 220 220" aria-label="Stock strength score: {{ score }} out of 100">
+        <defs><linearGradient id="scoreGradient"><stop offset="0%" stop-color="#38e8a5"/><stop offset="100%" stop-color="#65a8ff"/></linearGradient></defs>
+        <circle class="gauge-track" cx="110" cy="110" r="90"></circle>
+        <circle class="gauge-progress" cx="110" cy="110" r="90"></circle>
+      </svg>
+      <div class="gauge-value"><strong data-count="{{ score }}">0</strong><span>/ 100</span><small>AI strength score</small></div>
+    </div>
+    <div class="score-scale"><span>Weak</span><span>Moderate</span><span>Strong</span></div>
+  </div>
+</section>
+<section class="section risk-section">
+  <aside class="risk-alert glass reveal">
+    <div class="risk-alert-icon">!</div>
+    <div>
+      <div class="eyebrow danger"><span></span> Immediate risk alert</div>
+      <h2>Exit or re-evaluate immediately when major risks emerge.</h2>
+      <p>If a major war occurs, interest rates are hiked, tariffs are implemented, or another significant economic or policy shock occurs, do not rely only on this score. Immediately reconsider the investment and perform a fresh analysis.</p>
+      <p class="news-sources">Track breaking financial news through <strong>Moneycontrol</strong>, <strong>The Economic Times</strong>, and <strong>Financial Times</strong>.</p>
+    </div>
+  </aside>
+</section>
+<section class="section revisit">
+  <div class="section-heading reveal"><div class="eyebrow"><span></span> Keep your view current</div><h2>Revisit whenever the <em>story changes.</em></h2><p>We recommend performing a fresh analysis every 3 months.</p></div>
+  <div class="revisit-grid">
+    <div class="revisit-card glass reveal"><span>01</span><p>Quarterly results are announced</p></div>
+    <div class="revisit-card glass reveal delay-one"><span>02</span><p>Major management changes occur</p></div>
+    <div class="revisit-card glass reveal delay-two"><span>03</span><p>Wars or geopolitical events occur</p></div>
+    <div class="revisit-card glass reveal"><span>04</span><p>Tariffs or major policy changes are implemented</p></div>
+    <div class="revisit-card glass reveal delay-one"><span>05</span><p>Significant economic events happen</p></div>
+  </div>
+</section>
+{% endblock %}
