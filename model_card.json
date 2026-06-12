@@ -1,0 +1,30 @@
+{
+  "model": "XGBRegressor",
+  "features": [
+    "company_pe",
+    "industry_pe",
+    "pb_ratio",
+    "roe",
+    "roce",
+    "debt_to_equity",
+    "interest_coverage",
+    "sales_growth_5y",
+    "profit_growth_5y",
+    "operating_profit_margin",
+    "free_cash_flow",
+    "promoter_holding",
+    "promoter_pledge",
+    "current_ratio",
+    "eps_growth"
+  ],
+  "feature_count": 15,
+  "engine": "Uploaded XGBoost model loaded successfully after dependency install",
+  "known_training_claim": "94% classification accuracy on a synthetic expert-rule dataset, as supplied in the project description.",
+  "important_limitation": "This is not real-world return prediction accuracy until validated against historical fundamentals and future returns.",
+  "recommended_next_validation": [
+    "Backtest on NSE companies",
+    "Compare score buckets against 1Y, 3Y, and 5Y forward returns",
+    "Report confusion matrix for buy/watchlist/avoid buckets",
+    "Add SHAP explanations if allowed by dependencies"
+  ]
+}

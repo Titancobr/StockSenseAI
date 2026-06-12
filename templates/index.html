@@ -9,6 +9,7 @@
       <a class="button button-primary" href="{{ url_for('guide') }}">Start Analysis <span>→</span></a>
       <div class="trust"><strong>15</strong><span>fundamental signals<br>analyzed by AI</span></div>
     </div>
+    <p class="hero-disclaimer">Built as decision support for long-term fundamental screening, not as guaranteed financial advice.</p>
   </div>
   <div class="hero-visual reveal delay-one" aria-hidden="true">
     <div class="dashboard-card glass">
@@ -24,6 +25,21 @@
   </div>
 </section>
 
+<section class="section method-section">
+  <div class="section-heading reveal">
+    <div class="eyebrow"><span></span> Hackathon-ready method</div>
+    <h2>From raw fundamentals to an <em>auditable score.</em></h2>
+    <p>The product turns a personal investment checklist into a repeatable ML-assisted workflow with clear thresholds and review triggers.</p>
+  </div>
+  <div class="method-flow">
+    <article class="method-step glass reveal"><span>01</span><h3>Collect</h3><p>Beginner users watch guided videos and collect 15 financial indicators from public company screens.</p></article>
+    <article class="method-step glass reveal delay-one"><span>02</span><h3>Validate</h3><p>Every input is checked as numeric and complete before the model is allowed to score the stock.</p></article>
+    <article class="method-step glass reveal delay-two"><span>03</span><h3>Score</h3><p>XGBoost converts the fundamental profile into a 0-100 strength rating for long-term screening.</p></article>
+    <article class="method-step glass reveal"><span>04</span><h3>Explain</h3><p>Results are grouped into valuation, profitability, balance sheet, growth, and ownership signals.</p></article>
+    <article class="method-step glass reveal delay-one"><span>05</span><h3>Recheck</h3><p>Users revisit the analysis quarterly and whenever major macro or company-specific events occur.</p></article>
+  </div>
+</section>
+
 <section class="section guidelines">
   <div class="section-heading reveal">
     <div class="eyebrow"><span></span> Invest with perspective</div>
@@ -36,6 +52,24 @@
     <article class="info-card glass reveal delay-two"><span class="card-number">03</span><div class="icon-box">◫</div><h3>Keep Track of News</h3><p>Monitor important financial news from reliable business news platforms such as Moneycontrol.</p></article>
     <article class="info-card glass reveal"><span class="card-number">04</span><div class="icon-box">◎</div><h3>Major Global Events</h3><p>Re-evaluate after wars, tariffs, major government policy changes, economic crises, or global recessions.</p></article>
     <article class="info-card glass reveal delay-one"><span class="card-number">05</span><div class="icon-box">✦</div><h3>AI Decision Support</h3><p>This website provides an AI-based fundamental strength score to help evaluate stocks.</p></article>
+  </div>
+</section>
+
+<section class="section research-section">
+  <div class="section-heading reveal">
+    <div class="eyebrow"><span></span> Literature foundation</div>
+    <h2>Grounded in finance-ML <em>research.</em></h2>
+    <p>The project is positioned as ML-assisted fundamental stock screening, which is closer to stock recommendation than short-term price prediction.</p>
+  </div>
+  <div class="research-grid">
+    {% for paper in literature %}
+    <article class="research-card glass reveal">
+      <span>{{ paper.year }}</span>
+      <h3>{{ paper.title }}</h3>
+      <p class="authors">{{ paper.authors }}</p>
+      <p>{{ paper.takeaway }}</p>
+    </article>
+    {% endfor %}
   </div>
 </section>
 {% endblock %}

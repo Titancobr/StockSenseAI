@@ -1,0 +1,16 @@
+feature,importance
+free_cash_flow,0.6154883
+roce,0.13373978
+roe,0.09499511
+debt_to_equity,0.07727941
+sales_growth_5y,0.018918136
+interest_coverage,0.01888269
+profit_growth_5y,0.010895945
+promoter_pledge,0.0074009527
+eps_growth,0.0069694296
+promoter_holding,0.0049431436
+current_ratio,0.00491883
+industry_pe,0.0024894013
+company_pe,0.0023091703
+operating_profit_margin,0.00039026517
+pb_ratio,0.00037940047

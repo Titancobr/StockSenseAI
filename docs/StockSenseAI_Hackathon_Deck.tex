@@ -1,0 +1,429 @@
+\documentclass[aspectratio=169]{beamer}
+\usetheme{Madrid}
+\usecolortheme{default}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{ragged2e}
+\usepackage{multicol}
+
+\title{StockSense AI}
+\subtitle{XGBOOST-BASED FUNDAMENTAL STOCK SCREENING AND LONG-TERM INVESTMENT RECOMMENDATION SYSTEM}
+\author{Syed Ahmed}
+\institute{Mini Project / Hackathon Presentation}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Problem Statement}
+\justifying
+Long-term investors usually check whether a company is fundamentally strong before buying a stock. This requires reading many financial ratios such as ROE, ROCE, debt-to-equity, P/E, growth, free cash flow, promoter holding, and pledge percentage. For beginners and family investors, this process is slow, confusing, and dependent on personal experience.
+
+\vspace{0.3cm}
+\textbf{Project goal}
+\begin{itemize}
+  \item collect important company fundamentals,
+  \item analyze long-term fundamental strength,
+  \item generate a 0--100 AI strength score,
+  \item classify stocks as Buy, Watchlist, or Avoid,
+  \item provide beginner-friendly guidance and risk warnings.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{What Was Implemented from Research Papers}
+\small
+\begin{itemize}
+  \item From fundamental-analysis ML papers: use financial indicators instead of only price charts.
+  \item From stock recommendation papers: convert financial indicators into ranking/recommendation output.
+  \item From finance-ML review papers: consider model evaluation, data quality, and interpretability.
+  \item From practical decision-support systems: provide a user-facing workflow, not only a model result.
+\end{itemize}
+
+\vspace{0.2cm}
+\textbf{What is added beyond the papers}
+\begin{itemize}
+  \item beginner guide videos for collecting values,
+  \item 15-parameter web-based input form,
+  \item XGBoost-powered score generation,
+  \item explainable category-level diagnostics,
+  \item macro-risk alerts for wars, tariffs, rate hikes, and policy shocks.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Research Paper Comparison}
+\small
+\begin{tabular}{p{3.4cm} p{4.7cm} p{2.1cm} p{3.0cm}}
+\toprule
+\textbf{Paper} & \textbf{Core idea} & \textbf{Data type} & \textbf{Relevance to project} \\
+\midrule
+Huang et al. (IEEE SSCI 2021) & ML for stock prediction based on fundamental analysis & Quarterly financial data & Supports use of fundamentals for ML-assisted investment decisions \\
+\addlinespace
+Yang et al. (arXiv 2025) & Dynamic stock recommendation using financial indicators and model selection & Stock indicators and returns & Matches recommendation/ranking direction \\
+\addlinespace
+Saberironaghi et al. (AppliedMath 2025) & Review of ML and deep learning in stock market prediction & Survey paper & Helps justify ML use and discuss limitations \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.25cm}
+\textbf{Project positioning:} StockSense AI is closer to fundamental stock screening and recommendation than short-term stock price prediction.
+\end{frame}
+
+\begin{frame}{Dataset Used}
+\small
+\justifying
+The project currently uses a synthetic expert-rule dataset designed to imitate multiple long-term stock fundamental profiles. Each row represents one company-year style snapshot with 15 financial indicators and one target score.
+
+\vspace{0.2cm}
+\textbf{Processed dataset summary}
+\begin{itemize}
+  \item total rows: \textbf{62,500}
+  \item feature columns: \textbf{15}
+  \item target column: \textbf{score} from 0 to 100
+  \item output classes: \textbf{Buy, Watchlist, Avoid}
+\end{itemize}
+
+\textbf{Score distribution}
+\begin{itemize}
+  \item Avoid \((<60)\): \textbf{24,937}
+  \item Watchlist \((60--79)\): \textbf{18,820}
+  \item Buy \((\geq80)\): \textbf{18,743}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Synthetic Dataset Coverage}
+\small
+\justifying
+The dataset was strengthened to handle many real-world-like cases, not only ideal examples.
+
+\vspace{0.2cm}
+\begin{multicols}{2}
+\begin{itemize}
+  \item quality compounders,
+  \item average companies,
+  \item expensive quality stocks,
+  \item cyclicals,
+  \item distressed companies,
+  \item debt traps,
+  \item pledge-risk companies,
+  \item turnaround cases,
+  \item negative cash-flow growth cases,
+  \item zero-debt high coverage cases.
+\end{itemize}
+\end{multicols}
+
+\vspace{0.2cm}
+\textbf{Important note:} The dataset is strong for hackathon demonstration and repeatable training, but real-world investment-performance claims require historical fundamentals and future return validation.
+\end{frame}
+
+\begin{frame}{Input Parameters}
+\small
+\begin{columns}
+\column{0.33\textwidth}
+\textbf{Valuation}
+\begin{itemize}
+  \item Stock P/E
+  \item Industry P/E
+  \item Price to book value
+\end{itemize}
+
+\textbf{Profitability}
+\begin{itemize}
+  \item ROE
+  \item ROCE
+  \item OPM
+\end{itemize}
+
+\column{0.33\textwidth}
+\textbf{Safety}
+\begin{itemize}
+  \item Debt to equity
+  \item Interest coverage
+  \item Current ratio
+\end{itemize}
+
+\textbf{Growth}
+\begin{itemize}
+  \item Sales growth 5 years
+  \item Profit growth 5 years
+  \item EPS growth 3 years
+\end{itemize}
+
+\column{0.33\textwidth}
+\textbf{Cash and ownership}
+\begin{itemize}
+  \item Free cash flow
+  \item Promoter holding
+  \item Promoter pledge
+\end{itemize}
+\end{columns}
+\end{frame}
+
+\begin{frame}{End-to-End Architecture}
+\small
+\begin{center}
+\begin{tabular}{p{3.1cm} p{7.7cm}}
+\toprule
+\textbf{Layer} & \textbf{Function} \\
+\midrule
+Frontend & Guide videos, 15-input analysis form, progress indicator, result gauge, recommendation page \\
+\addlinespace
+Flask backend & Validates inputs, loads feature order, prepares model input, handles errors, exposes health route \\
+\addlinespace
+ML engine & XGBoost regressor predicts a 0--100 fundamental strength score \\
+\addlinespace
+Explanation layer & Groups signals into valuation, profitability, balance-sheet safety, growth, and ownership/cash quality \\
+\addlinespace
+Risk guidance & Warns users to re-evaluate during wars, tariffs, interest-rate hikes, economic shocks, or major policy changes \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.25cm}
+\centering
+User fundamentals $\rightarrow$ Flask validation $\rightarrow$ XGBoost model $\rightarrow$ Score $\rightarrow$ Buy / Watchlist / Avoid
+\end{frame}
+
+\begin{frame}[shrink=8]{Preprocessing, Training and Evaluation Pipeline}
+\small
+\textbf{Dataset generation}
+\begin{enumerate}
+  \item define fundamental indicators and expert-rule relations,
+  \item generate multiple company regimes and edge cases,
+  \item assign a 0--100 score using weighted rules and red-flag penalties,
+  \item store final dataset in \texttt{data/training\_data.csv}.
+\end{enumerate}
+
+\textbf{Training}
+\begin{enumerate}
+  \item load 15 feature columns,
+  \item clean missing and infinite values,
+  \item split into train and test data,
+  \item train XGBoost regressor,
+  \item save \texttt{stocksense\_model.pkl}.
+\end{enumerate}
+
+\textbf{Evaluation}
+\begin{enumerate}
+  \item compute MAE and \(R^2\),
+  \item convert score into Buy, Watchlist, Avoid buckets,
+  \item compute bucket accuracy,
+  \item export model metadata and feature importance.
+\end{enumerate}
+\end{frame}
+
+\begin{frame}[shrink=8]{Scoring Logic}
+\small
+\justifying
+The target score is generated using a weighted fundamental-analysis philosophy. Positive signals increase the score, while red flags reduce the score.
+
+\vspace{0.2cm}
+\textbf{Positive signals}
+\begin{itemize}
+  \item high ROE and ROCE,
+  \item consistent sales, profit, and EPS growth,
+  \item low debt-to-equity,
+  \item strong interest coverage,
+  \item positive free cash flow,
+  \item high promoter holding and low promoter pledge.
+\end{itemize}
+
+\textbf{Red flags}
+\begin{itemize}
+  \item excessive valuation compared with industry P/E,
+  \item high leverage,
+  \item weak interest coverage,
+  \item negative free cash flow,
+  \item high promoter pledge,
+  \item poor liquidity or weak profitability.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[shrink=8]{XGBoost Model}
+\small
+\textbf{Model used:} \texttt{XGBRegressor}
+
+\vspace{0.2cm}
+\textbf{Why XGBoost was selected}
+\begin{itemize}
+  \item works well on structured tabular financial data,
+  \item captures non-linear relationships between fundamentals,
+  \item handles interactions such as high growth with high valuation,
+  \item gives feature importance for explainability,
+  \item fast enough for web application inference.
+\end{itemize}
+
+\vspace{0.2cm}
+\textbf{Training configuration}
+\begin{itemize}
+  \item estimators: 650
+  \item max depth: 4
+  \item learning rate: 0.04
+  \item subsample: 0.85
+  \item column sample by tree: 0.85
+  \item regularization: alpha 0.05, lambda 1.5
+\end{itemize}
+\end{frame}
+
+\begin{frame}{How Recommendation is Generated}
+\small
+\justifying
+The model predicts a continuous score from 0 to 100. The web application then converts the score into an investor-friendly recommendation.
+
+\vspace{0.3cm}
+\begin{center}
+\begin{tabular}{c c p{6.4cm}}
+\toprule
+\textbf{Score range} & \textbf{Output} & \textbf{Meaning} \\
+\midrule
+\(\geq 80\) & Buy & Strong long-term candidate according to entered fundamentals \\
+\addlinespace
+60--79 & Watchlist & Moderate fundamentals; monitor and re-analyze later \\
+\addlinespace
+\(<60\) & Avoid & Weak or risky fundamentals; avoid unless fundamentals improve \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{frame}
+
+\begin{frame}{Current XGBoost Analytics}
+\small
+\textbf{From \texttt{model\_metadata.json}}
+\begin{itemize}
+  \item Rows after cleaning: \textbf{62,500}
+  \item Model: \textbf{XGBRegressor}
+  \item Mean Absolute Error: \textbf{2.80}
+  \item \(R^2\) score: \textbf{0.982}
+  \item Buy/Watchlist/Avoid bucket accuracy: \textbf{91.45\%}
+\end{itemize}
+
+\vspace{0.2cm}
+\textbf{Interpretation}
+\begin{itemize}
+  \item MAE of 2.80 means the predicted score is usually within about 3 points of the synthetic label.
+  \item \(R^2=0.982\) indicates strong fit to the generated fundamental scoring logic.
+  \item Bucket accuracy measures whether the recommendation class is correct.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Feature Importance}
+\small
+\begin{tabular}{p{4.2cm} c p{6.0cm}}
+\toprule
+\textbf{Feature} & \textbf{Importance} & \textbf{Interpretation} \\
+\midrule
+ROCE & 0.302 & Most important capital-efficiency signal \\
+ROE & 0.211 & Strong shareholder-return signal \\
+Profit growth 5Y & 0.115 & Measures long-term business growth \\
+Interest coverage & 0.076 & Captures debt servicing safety \\
+Sales growth 5Y & 0.073 & Revenue consistency signal \\
+Current ratio & 0.051 & Liquidity and short-term safety \\
+Free cash flow & 0.044 & Cash-generation quality \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.25cm}
+\textbf{Interpretation:} The model focuses mainly on profitability, capital efficiency, growth, and balance-sheet safety, which matches long-term fundamental analysis.
+\end{frame}
+
+\begin{frame}{Website Flow}
+\small
+\begin{enumerate}
+  \item User opens StockSense AI homepage.
+  \item User watches guide videos to understand how to collect values.
+  \item User enters all 15 fundamental parameters.
+  \item Flask validates every value.
+  \item XGBoost model generates a score.
+  \item Result page shows:
+  \begin{itemize}
+    \item score gauge,
+    \item Buy / Watchlist / Avoid recommendation,
+    \item strength signals,
+    \item review-before-buying signals,
+    \item risk alerts and news-monitoring guidance.
+  \end{itemize}
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{How This Project Improves on Basic ML Demos}
+\small
+\begin{itemize}
+  \item Many stock ML projects focus only on price prediction.
+  \item This project focuses on fundamental long-term screening.
+  \item It combines:
+  \begin{itemize}
+    \item financial-ratio based input,
+    \item XGBoost model prediction,
+    \item beginner-friendly frontend,
+    \item explanation layer,
+    \item model metadata and feature importance,
+    \item risk warnings and re-analysis guidance.
+  \end{itemize}
+  \item So the project is an end-to-end decision-support application, not only a model notebook.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Important Limitation}
+\small
+\begin{alertblock}{Do not overclaim}
+The current model is trained on a synthetic expert-rule dataset. Therefore, the accuracy shows how well the model learned the generated fundamental scoring logic. It does not prove real-world stock return prediction accuracy.
+\end{alertblock}
+
+\vspace{0.2cm}
+\textbf{Correct claim}
+\begin{itemize}
+  \item The XGBoost model achieved \textbf{91.45\%} Buy/Watchlist/Avoid bucket accuracy on a 62,500-row synthetic fundamental-analysis dataset.
+\end{itemize}
+
+\textbf{Incorrect claim}
+\begin{itemize}
+  \item The model predicts real stock market returns with 91.45\% accuracy.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Future Improvements}
+\begin{itemize}
+  \item collect real historical fundamentals for NSE-listed companies,
+  \item add 1-year, 3-year, and 5-year future return labels,
+  \item validate the model on unseen real companies,
+  \item add sector-wise normalization,
+  \item add peer comparison,
+  \item add SHAP-based model explanations,
+  \item integrate compliant finance APIs where available,
+  \item improve UI with portfolio watchlist and saved analysis history.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Conclusion}
+\justifying
+StockSense AI is a fundamental-analysis based stock screening system for long-term investors. It converts 15 important financial indicators into a 0--100 strength score using an XGBoost model and presents the output as Buy, Watchlist, or Avoid.
+
+\vspace{0.3cm}
+The project includes a beginner-friendly Flask web application, guide videos, input validation, explainable category diagnostics, feature-importance reporting, and macro-risk warnings. The current XGBoost model performs strongly on a 62,500-row synthetic expert-rule dataset.
+
+\vspace{0.3cm}
+The next major improvement is to validate the same system on real historical fundamentals and future stock returns, which would make the project stronger for research and real-world investment decision support.
+\end{frame}
+
+\begin{frame}{References}
+\footnotesize
+\begin{itemize}
+  \item Y. Huang, L. F. Capretz and D. Ho, ``Machine Learning for Stock Prediction Based on Fundamental Analysis,'' IEEE SSCI, 2021.
+  \item H. Yang, X.-Y. Liu and Q. Wu, ``A Practical Machine Learning Approach for Dynamic Stock Recommendation,'' arXiv:2511.12129.
+  \item M. Saberironaghi, J. Ren and A. Saberironaghi, ``Stock Market Prediction Using Machine Learning and Deep Learning Techniques: A Review,'' AppliedMath, 2025.
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+  \centering
+  \Huge Thank You
+\end{frame}
+
+\end{document}
