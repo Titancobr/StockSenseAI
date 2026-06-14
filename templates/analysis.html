@@ -21,6 +21,10 @@
   <form class="analysis-form glass reveal" method="post" action="{{ url_for('analysis') }}">
     <div class="form-progress"><span><b data-completed-fields>0</b>/15 values completed</span><span data-model-status>Complete every field <i></i></span></div>
     {% if errors %}<div class="form-alert">Please correct the highlighted fields and try again.</div>{% endif %}
+    <label class="stock-name-field">
+      <span>Stock or company name</span>
+      <input type="text" name="stock_name" placeholder="e.g. Infosys" value="{{ stock_name or '' }}" autocomplete="organization">
+    </label>
     <div class="input-grid">
       {% for label, feature, placeholder in fields %}
       <label class="input-card {% if errors and feature in errors %}has-error{% endif %}">

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Sign Up | StockSense AI{% endblock %}
+{% block content %}
+<section class="auth-section section">
+  <div class="auth-panel glass reveal">
+    <div class="eyebrow"><span></span> Create account</div>
+    <h1>Start saving analyses.</h1>
+    <p>Each user gets a private history so recommendations and entered fundamentals stay separated by customer.</p>
+    <form class="auth-form" method="post" action="{{ url_for('signup') }}">
+      <label>Name<input type="text" name="name" value="{{ name or '' }}" required autocomplete="name"></label>
+      <label>Email<input type="email" name="email" value="{{ email or '' }}" required autocomplete="email"></label>
+      <label>Password<input type="password" name="password" required minlength="8" autocomplete="new-password"></label>
+      <button class="button button-primary" type="submit">Create Account <span>→</span></button>
+    </form>
+    <div class="oauth-grid">
+      <a class="oauth-button" href="{{ url_for('oauth_login', provider='google') }}">Sign up with Google</a>
+      <a class="oauth-button" href="{{ url_for('oauth_login', provider='apple') }}">Sign up with Apple</a>
+    </div>
+    <p class="auth-switch">Already have an account? <a href="{{ url_for('login') }}">Login</a></p>
+  </div>
+</section>
+{% endblock %}

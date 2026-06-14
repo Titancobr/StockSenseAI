@@ -23,11 +23,29 @@
     <nav aria-label="Main navigation">
       <a href="{{ url_for('home') }}">Home</a>
       <a href="{{ url_for('guide') }}">Guide</a>
+      {% if current_user %}
+      <a href="{{ url_for('history') }}">History</a>
+      <a href="{{ url_for('logout') }}">Logout</a>
       <a class="nav-cta" href="{{ url_for('analysis') }}">Analyze</a>
+      {% else %}
+      <a href="{{ url_for('login') }}">Login</a>
+      <a class="nav-cta" href="{{ url_for('signup') }}">Sign Up</a>
+      {% endif %}
     </nav>
   </header>
 
-  <main>{% block content %}{% endblock %}</main>
+  <main>
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="flash-stack">
+      {% for message in messages %}
+      <div class="flash-message glass">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
 
   <footer class="footer">
     <div class="footer-inner glass">

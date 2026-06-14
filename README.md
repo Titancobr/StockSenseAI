@@ -16,6 +16,10 @@ short-term price prediction and not investment advice.
 
 - Flask backend with the uploaded `stocksense_model.pkl` scorer.
 - Beginner guide videos for collecting required values.
+- Customer login/signup with private SQLite-backed analysis history.
+- Optional Google and Apple OAuth sign-in when provider credentials are set.
+- Optional Ollama/Llama recommendation writer for richer stock-specific
+  explanations.
 - 15-parameter analysis form.
 - Result page with score gauge, recommendation, explanation, strengths,
   watchouts, and category-level diagnostics.
@@ -59,6 +63,44 @@ python app.py
 ```
 
 Open `http://127.0.0.1:5000`.
+
+### Configuration
+
+Set these environment variables for production-like auth and LLM behavior:
+
+```bash
+export SECRET_KEY="replace-with-a-long-random-value"
+export STOCKSENSE_DATABASE="/path/to/stocksense.db"
+
+# Google OAuth
+export GOOGLE_CLIENT_ID="..."
+export GOOGLE_CLIENT_SECRET="..."
+
+# Apple OAuth
+export APPLE_CLIENT_ID="..."
+export APPLE_CLIENT_SECRET="..."
+
+# Llama recommendations through Ollama
+export STOCKSENSE_ENABLE_LLM="true"
+export STOCKSENSE_LLM_MODEL="llama3.1"
+export OLLAMA_BASE_URL="http://localhost:11434"
+```
+
+The Google callback URL is:
+
+```text
+http://127.0.0.1:5000/auth/google/callback
+```
+
+The Apple callback URL is:
+
+```text
+http://127.0.0.1:5000/auth/apple/callback
+```
+
+Without OAuth credentials, email/password login still works. Without
+`STOCKSENSE_ENABLE_LLM=true` or a running Ollama server, StockSense uses a local
+explanation fallback based on the model score and diagnostics.
 
 ## Test
 

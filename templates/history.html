@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Analysis History | StockSense AI{% endblock %}
+{% block content %}
+<section class="page-hero section compact">
+  <div class="eyebrow reveal"><span></span> Customer history</div>
+  <h1 class="reveal">Saved stock analyses.</h1>
+  <p class="reveal">Review previous scores and recommendation sources for the signed-in customer.</p>
+</section>
+<section class="section history-section">
+  {% if analyses %}
+  <div class="history-table glass reveal">
+    <div class="history-row history-head">
+      <span>Stock</span><span>Score</span><span>Recommendation</span><span>Engine</span><span>Date</span>
+    </div>
+    {% for row in analyses %}
+    <div class="history-row">
+      <strong>{{ row.stock_name }}</strong>
+      <span>{{ row.score }}/100</span>
+      <span>{{ row.recommendation }}</span>
+      <span>{{ row.llm_source }}</span>
+      <span>{{ row.created_at }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state glass reveal">
+    <h2>No saved analyses yet.</h2>
+    <p>Run your first stock analysis and it will appear here automatically.</p>
+    <a class="button button-primary" href="{{ url_for('analysis') }}">Analyze Stock <span>→</span></a>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

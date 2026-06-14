@@ -1,13 +1,40 @@
+import json
+import os
+import sqlite3
+from functools import wraps
 from pathlib import Path
+from urllib import request as urlrequest
 
 import joblib
 import pandas as pd
-from flask import Flask, abort, render_template, request, send_from_directory
+from flask import (
+    Flask,
+    abort,
+    flash,
+    g,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    session,
+    url_for,
+)
+from werkzeug.security import check_password_hash, generate_password_hash
+
+try:
+    from authlib.integrations.flask_client import OAuth
+except ImportError:  # pragma: no cover - lets the app explain missing optional deps.
+    OAuth = None
 
 
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_PATH = BASE_DIR / "stocksense_model.pkl"
 FEATURES_PATH = BASE_DIR / "feature_columns.pkl"
+DATABASE_PATH = Path(os.environ.get("STOCKSENSE_DATABASE", BASE_DIR / "stocksense.db"))
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-before-production")
+LLM_MODEL = os.environ.get("STOCKSENSE_LLM_MODEL", "llama3.1")
+OLLAMA_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+LLM_ENABLED = os.environ.get("STOCKSENSE_ENABLE_LLM", "").lower() in {"1", "true", "yes"}
 
 FIELD_DEFINITIONS = [
     ("Stock P/E", "company_pe", "e.g. 22.5"),
@@ -81,6 +108,26 @@ LITERATURE_REFERENCES = [
 MODEL_LOAD_ERROR = None
 
 app = Flask(__name__)
+app.config["SECRET_KEY"] = SECRET_KEY
+oauth = OAuth(app) if OAuth is not None else None
+
+if oauth and os.environ.get("GOOGLE_CLIENT_ID") and os.environ.get("GOOGLE_CLIENT_SECRET"):
+    oauth.register(
+        name="google",
+        client_id=os.environ["GOOGLE_CLIENT_ID"],
+        client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
+        server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+        client_kwargs={"scope": "openid email profile"},
+    )
+
+if oauth and os.environ.get("APPLE_CLIENT_ID") and os.environ.get("APPLE_CLIENT_SECRET"):
+    oauth.register(
+        name="apple",
+        client_id=os.environ["APPLE_CLIENT_ID"],
+        client_secret=os.environ["APPLE_CLIENT_SECRET"],
+        server_metadata_url="https://appleid.apple.com/.well-known/openid-configuration",
+        client_kwargs={"scope": "name email"},
+    )
 
 try:
     feature_columns = list(joblib.load(FEATURES_PATH))
@@ -98,6 +145,117 @@ if feature_columns != expected_features:
     raise RuntimeError(
         "feature_columns.pkl does not match the required StockSense input mapping."
     )
+
+
+def get_db():
+    if "db" not in g:
+        g.db = sqlite3.connect(DATABASE_PATH)
+        g.db.row_factory = sqlite3.Row
+    return g.db
+
+
+def init_db():
+    DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    db = get_db()
+    db.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL UNIQUE,
+            name TEXT,
+            password_hash TEXT,
+            auth_provider TEXT NOT NULL DEFAULT 'password',
+            provider_user_id TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS analyses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            stock_name TEXT NOT NULL,
+            input_values TEXT NOT NULL,
+            score INTEGER NOT NULL,
+            recommendation TEXT NOT NULL,
+            explanation TEXT NOT NULL,
+            category_scores TEXT NOT NULL,
+            diagnostics TEXT NOT NULL,
+            llm_source TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+        """
+    )
+    db.commit()
+
+
+@app.before_request
+def load_logged_in_user():
+    init_db()
+    user_id = session.get("user_id")
+    g.user = None
+    if user_id is not None:
+        g.user = get_db().execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+
+
+@app.teardown_appcontext
+def close_db(_error=None):
+    db = g.pop("db", None)
+    if db is not None:
+        db.close()
+
+
+@app.context_processor
+def inject_current_user():
+    return {"current_user": g.get("user")}
+
+
+def login_required(view):
+    @wraps(view)
+    def wrapped_view(*args, **kwargs):
+        if g.user is None:
+            flash("Log in or create an account to save customer-specific analyses.")
+            return redirect(url_for("login", next=request.path))
+        return view(*args, **kwargs)
+
+    return wrapped_view
+
+
+def _find_user_by_email(email):
+    return get_db().execute("SELECT * FROM users WHERE lower(email) = lower(?)", (email,)).fetchone()
+
+
+def _create_or_update_oauth_user(provider, profile):
+    email = (profile.get("email") or "").strip().lower()
+    if not email:
+        raise ValueError("The identity provider did not return an email address.")
+
+    name = profile.get("name") or profile.get("given_name") or email.split("@")[0]
+    provider_user_id = profile.get("sub") or profile.get("id")
+    db = get_db()
+    user = _find_user_by_email(email)
+    if user is None:
+        cursor = db.execute(
+            """
+            INSERT INTO users (email, name, auth_provider, provider_user_id)
+            VALUES (?, ?, ?, ?)
+            """,
+            (email, name, provider, provider_user_id),
+        )
+        db.commit()
+        return cursor.lastrowid
+
+    db.execute(
+        """
+        UPDATE users
+        SET name = COALESCE(?, name),
+            auth_provider = ?,
+            provider_user_id = COALESCE(?, provider_user_id)
+        WHERE id = ?
+        """,
+        (name, provider, provider_user_id, user["id"]),
+    )
+    db.commit()
+    return user["id"]
 
 
 def _bounded_score(value, low, high, invert=False):
@@ -199,6 +357,130 @@ def _build_stock_diagnostics(values, category_scores):
     }
 
 
+def _tone_for_recommendation(recommendation):
+    normalized = recommendation.upper()
+    if "BUY" in normalized:
+        return "buy"
+    if "AVOID" in normalized or "SELL" in normalized:
+        return "avoid"
+    return "watchlist"
+
+
+def _fallback_recommendation(values, score, category_scores, diagnostics, stock_name):
+    if score >= 80:
+        recommendation = "BUY"
+    elif score >= 60:
+        recommendation = "WATCHLIST"
+    else:
+        recommendation = "AVOID"
+
+    company = stock_name or "This stock"
+    strongest = diagnostics["strongest_category"].lower()
+    weakest = diagnostics["weakest_category"].lower()
+    explanation = (
+        f"{company} scores {score}/100. The strongest signal is {strongest}, while "
+        f"{weakest} deserves the closest review before any decision."
+    )
+    description = (
+        f"{company} shows {diagnostics['strengths'][0].lower()} The main caution is that "
+        f"{diagnostics['watchouts'][0].lower()} Recheck quarterly results, sector news, and "
+        "management commentary before treating this as an investment candidate."
+    )
+    return {
+        "recommendation": recommendation,
+        "tone": _tone_for_recommendation(recommendation),
+        "explanation": explanation,
+        "description": description,
+        "source": "Rule-based fallback explanation",
+    }
+
+
+def _build_llm_prompt(values, score, category_scores, diagnostics, stock_name):
+    company = stock_name or "the stock"
+    metrics = {FEATURE_LABELS[key]: value for key, value in values.items()}
+    return (
+        "You are StockSense AI, a cautious fundamental-analysis assistant for Indian long-term investors. "
+        "Use only the supplied fundamentals and do not invent market prices, news, targets, or guarantees. "
+        "Return strict JSON with keys recommendation, explanation, description. "
+        "recommendation must be one of BUY, WATCHLIST, or AVOID. "
+        "explanation must be one concise sentence. description must be 90-140 words with strengths, risks, "
+        "and what to verify next. This is educational decision support, not financial advice.\n\n"
+        f"Stock: {company}\n"
+        f"Score: {score}/100\n"
+        f"Metrics: {json.dumps(metrics, sort_keys=True)}\n"
+        f"Category scores: {json.dumps(category_scores, sort_keys=True)}\n"
+        f"Diagnostics: {json.dumps(diagnostics, sort_keys=True)}"
+    )
+
+
+def _llama_recommendation(values, score, category_scores, diagnostics, stock_name):
+    payload = {
+        "model": LLM_MODEL,
+        "prompt": _build_llm_prompt(values, score, category_scores, diagnostics, stock_name),
+        "stream": False,
+        "format": "json",
+        "options": {"temperature": 0.25},
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req = urlrequest.Request(
+        f"{OLLAMA_URL}/api/generate",
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urlrequest.urlopen(req, timeout=4) as response:
+        outer = json.loads(response.read().decode("utf-8"))
+    content = json.loads(outer.get("response", "{}"))
+    recommendation = str(content.get("recommendation", "")).upper()
+    if recommendation not in {"BUY", "WATCHLIST", "AVOID"}:
+        raise ValueError("Llama returned an unsupported recommendation.")
+    explanation = str(content.get("explanation", "")).strip()
+    description = str(content.get("description", "")).strip()
+    if not explanation or not description:
+        raise ValueError("Llama response did not include the required explanation fields.")
+    return {
+        "recommendation": recommendation,
+        "tone": _tone_for_recommendation(recommendation),
+        "explanation": explanation,
+        "description": description,
+        "source": f"Ollama {LLM_MODEL}",
+    }
+
+
+def _build_recommendation(values, score, category_scores, diagnostics, stock_name):
+    if not LLM_ENABLED:
+        return _fallback_recommendation(values, score, category_scores, diagnostics, stock_name)
+    try:
+        return _llama_recommendation(values, score, category_scores, diagnostics, stock_name)
+    except Exception as exc:
+        app.logger.info("Llama recommendation unavailable; using local fallback: %s", exc)
+        return _fallback_recommendation(values, score, category_scores, diagnostics, stock_name)
+
+
+def _save_analysis(user_id, stock_name, values, score, recommendation, category_scores, diagnostics):
+    get_db().execute(
+        """
+        INSERT INTO analyses (
+            user_id, stock_name, input_values, score, recommendation, explanation,
+            category_scores, diagnostics, llm_source
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            user_id,
+            stock_name or "Unnamed stock",
+            json.dumps(values, sort_keys=True),
+            score,
+            recommendation["recommendation"],
+            recommendation["description"],
+            json.dumps(category_scores, sort_keys=True),
+            json.dumps(diagnostics, sort_keys=True),
+            recommendation["source"],
+        ),
+    )
+    get_db().commit()
+
+
 @app.get("/")
 def home():
     return render_template(
@@ -213,11 +495,110 @@ def guide():
     return render_template("guide.html")
 
 
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "GET":
+        return render_template("signup.html")
+
+    name = request.form.get("name", "").strip()
+    email = request.form.get("email", "").strip().lower()
+    password = request.form.get("password", "")
+    if not name or not email or len(password) < 8:
+        flash("Enter your name, a valid email, and a password with at least 8 characters.")
+        return render_template("signup.html", name=name, email=email), 400
+    if _find_user_by_email(email):
+        flash("An account with that email already exists. Log in instead.")
+        return render_template("login.html", email=email), 400
+
+    cursor = get_db().execute(
+        """
+        INSERT INTO users (email, name, password_hash, auth_provider)
+        VALUES (?, ?, ?, 'password')
+        """,
+        (email, name, generate_password_hash(password)),
+    )
+    get_db().commit()
+    session.clear()
+    session["user_id"] = cursor.lastrowid
+    return redirect(url_for("analysis"))
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "GET":
+        return render_template("login.html", next=request.args.get("next", ""))
+
+    email = request.form.get("email", "").strip().lower()
+    password = request.form.get("password", "")
+    user = _find_user_by_email(email)
+    if user is None or not user["password_hash"] or not check_password_hash(user["password_hash"], password):
+        flash("Email or password is incorrect.")
+        return render_template("login.html", email=email, next=request.form.get("next", "")), 400
+
+    session.clear()
+    session["user_id"] = user["id"]
+    next_url = request.form.get("next") or url_for("analysis")
+    return redirect(next_url if next_url.startswith("/") and not next_url.startswith("//") else url_for("analysis"))
+
+
+@app.get("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("home"))
+
+
+@app.get("/auth/<provider>")
+def oauth_login(provider):
+    if oauth is None:
+        flash("Install Authlib to enable social sign-in.")
+        return redirect(url_for("login"))
+    if provider not in {"google", "apple"} or provider not in oauth._clients:
+        flash(f"{provider.title()} sign-in is not configured yet.")
+        return redirect(url_for("login"))
+    redirect_uri = url_for("oauth_callback", provider=provider, _external=True)
+    return oauth.create_client(provider).authorize_redirect(redirect_uri)
+
+
+@app.get("/auth/<provider>/callback")
+def oauth_callback(provider):
+    if oauth is None or provider not in oauth._clients:
+        flash("That social sign-in provider is not configured.")
+        return redirect(url_for("login"))
+    try:
+        client = oauth.create_client(provider)
+        token = client.authorize_access_token()
+        profile = client.parse_id_token(token)
+        session.clear()
+        session["user_id"] = _create_or_update_oauth_user(provider, dict(profile))
+    except Exception as exc:
+        app.logger.exception("%s OAuth login failed", provider)
+        flash(f"{provider.title()} sign-in failed: {exc}")
+        return redirect(url_for("login"))
+    return redirect(url_for("analysis"))
+
+
+@app.get("/history")
+@login_required
+def history():
+    rows = get_db().execute(
+        """
+        SELECT id, stock_name, score, recommendation, llm_source, created_at
+        FROM analyses
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+        """,
+        (g.user["id"],),
+    ).fetchall()
+    return render_template("history.html", analyses=rows)
+
+
 @app.route("/analysis", methods=["GET", "POST"])
+@login_required
 def analysis():
     if request.method == "GET":
         return render_template("analysis.html", fields=FIELD_DEFINITIONS, values={})
 
+    stock_name = request.form.get("stock_name", "").strip()
     values = {}
     errors = {}
     for label, feature, _ in FIELD_DEFINITIONS:
@@ -238,6 +619,7 @@ def analysis():
                 fields=FIELD_DEFINITIONS,
                 values=values,
                 errors=errors,
+                stock_name=stock_name,
             ),
             400,
         )
@@ -270,38 +652,23 @@ def analysis():
             return render_template("error.html", message=str(exc)), 500
 
     score = max(0, min(100, round(raw_score)))
-    if score >= 80:
-        recommendation = "BUY"
-        tone = "buy"
-        explanation = (
-            "The stock appears fundamentally strong according to the AI model and "
-            "can be considered a strong long-term candidate."
-        )
-    elif score >= 60:
-        recommendation = "WATCHLIST"
-        tone = "watchlist"
-        explanation = (
-            "The stock has moderate fundamentals. Keep an eye on it and analyze it "
-            "again in the future."
-        )
-    else:
-        recommendation = "AVOID"
-        tone = "avoid"
-        explanation = (
-            "The stock appears fundamentally weak according to the AI model. It is "
-            "better to avoid investing unless the fundamentals improve significantly."
-        )
+    diagnostics = _build_stock_diagnostics(values, category_scores)
+    recommendation = _build_recommendation(values, score, category_scores, diagnostics, stock_name)
+    _save_analysis(g.user["id"], stock_name, values, score, recommendation, category_scores, diagnostics)
 
     return render_template(
         "result.html",
+        stock_name=stock_name,
         score=score,
-        recommendation=recommendation,
-        tone=tone,
-        explanation=explanation,
+        recommendation=recommendation["recommendation"],
+        tone=recommendation["tone"],
+        explanation=recommendation["explanation"],
+        recommendation_description=recommendation["description"],
+        llm_source=recommendation["source"],
         engine_label=engine_label,
         engine_note=engine_note,
         category_scores=category_scores,
-        diagnostics=_build_stock_diagnostics(values, category_scores),
+        diagnostics=diagnostics,
         literature=LITERATURE_REFERENCES,
     )
 
